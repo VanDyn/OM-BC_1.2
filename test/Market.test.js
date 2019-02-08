@@ -39,7 +39,7 @@ beforeEach(async () =>{
 	auction = await new web3.eth.Contract(
 		JSON.parse(compiledAuction.interface),
 		auctionAddress
-	); 
+	);
 });
 
 describe('Market', () => {
@@ -59,7 +59,8 @@ describe('Market', () => {
 			from: accounts[1],
 			gas: '1000000'
 		});
-		const isContractOwner = await contract.methods.contracts(accounts[1]).call();
+		console.log(contract.methods.getContract);
+		const isContractOwner = await contract.methods.contracts(accounts[1]).call()
 		assert(isContractOwner);
 	});
 });

@@ -1,79 +1,42 @@
-pragma solidity ^0.4.17;
-
+pragma solidity ^0.4.22;
 contract Market {
 
-    address public marketPublisher;
-    address public contractAddress;
-    address public auctionAddress;
-
-
-    function Market() public {
-        marketPublisher = msg.sender;
-        auctionAddress = new Auction();
-    }
-
-
-    function addContract(uint _x, uint _y, uint _z) public {     //Add a contract to the market for auction
-        address newContract = new Contract(_x, _y, _z, msg.sender);
-        contractAddress = newContract;
-    }
-
-    function getContractAddresses() public returns(address){   //Return all contract addresses
-        return contractAddress;
-    }
-
-    function sendToAuction() public returns(uint){
-       Auction auc = new Auction();
-       return auc.getBid();
-    }
-
-    function getAuctionAddress() view public returns(address){
-        return auctionAddress;
-    }
-
-
-}
-
-contract Auction {
-
     struct Participant {
-        uint costFunction;
-        uint x;
-        uint y;
-        uint z;
+        address agentAcc;
         string name;
     }
 
     Participant[] public Participants;
-    int public highestBid;
+    mapping(address=>address) liveContracts;
 
-    function Auction() public {
+    address public marketPublisher;
+    Contract private contracts;
 
+
+    function Market() public {
+        marketPublisher = msg.sender;
     }
 
-    function addParticipants(uint _costFunction, uint _x, uint _y, uint _z, string _name) private {
-
+    function joinMarket(string _name) public {
+        //require statement here
         Participant memory agent = Participant({
-            costFunction: _costFunction,
-            x: _x,
-            y: _y,
-            z: _z,
+            agentAcc: msg.sender,
             name: _name
         });
-
         Participants.push(agent);
     }
 
-
-    function auctionContract() private returns(uint) {
-        return Participants[0].costFunction;
+    function addContract(uint _x, uint _y, uint _z) public {     //Add a contract to the market for auction
+        address newContract = new Contract(_x, _y, _z, msg.sender);
+        liveContracts[msg.sender] = newContract;
     }
 
-    function submitBid() view public returns(uint){
-
-        return auctionContract();
+    function getContractAddress(address _contractOwner) view public returns (address){
+        return liveContracts[_contractOwner];
     }
+
 }
+
 
 contract Contract {
 
@@ -83,12 +46,20 @@ contract Contract {
         uint z;
     }
 
+    uint public lowestBid;
+    address public lowestBidder;
+    mapping(address=>uint) submittedBids;
+
+    bool ended;
+
     address public Owner;
-    mapping (address => contractStructure) public contracts;
+    mapping (address => contractStructure) private contracts;
+
+    event newLowestBid(address bidder, uint amount);
+    event contractAwarded(address winner, uint amount);
 
     function Contract(uint _x, uint _y, uint _z, address _owner) public {
         Owner = _owner;
-
         var liveContract = contracts[Owner];
         liveContract.x = _x;
         liveContract.y = _y;
@@ -99,4 +70,32 @@ contract Contract {
     function getContract() view public returns (uint, uint, uint){
         return (contracts[Owner].x, contracts[Owner].y, contracts[Owner].z);
     }
+
+    function submitBid() public payable {
+
+        //make sure bid beats current lowest
+        if(lowestBid > 0) { require(msg.value < lowestBid); }
+        //make sure bid is greater than 0
+        require(msg.value > 0);
+        //make sure owner doesn't bid on own contract
+        require(msg.sender != Owner, "Owner cannot bid on contract");
+        require(!ended, "Contract already awarded....");
+
+        submittedBids[msg.sender] = msg.value;
+
+        lowestBid = msg.value;
+        lowestBidder = msg.sender;
+        emit newLowestBid(lowestBidder, lowestBid);
+
+    }
+
+    function auctionEnd() public {
+        //set this to only be called by owner
+        //setup a minimum live time for contract
+        require(!ended, "Contract already awarded....");
+
+        ended = true;
+        emit contractAwarded(lowestBidder,lowestBid);
+    }
+
 }

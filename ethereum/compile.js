@@ -9,7 +9,7 @@ const marketPath = path.resolve(__dirname, 'contracts', 'Market.sol');
 const source = fs.readFileSync(marketPath, 'utf8');
 const output = solc.compile(source, 1).contracts;
 
-fs.ensureDirSync(buildPath); 
+fs.ensureDirSync(buildPath);
 
 for (let contract in output) {
 	fs.outputJsonSync(
